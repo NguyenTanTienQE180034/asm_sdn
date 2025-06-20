@@ -12,7 +12,7 @@ interface Product {
     image: string;
 }
 
-export default function Home() {
+export default function Products() {
     const [products, setProducts] = useState<Product[]>([]);
     const { data: session } = useSession();
 
@@ -40,9 +40,7 @@ export default function Home() {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-6">
-                Welcome to Our E-Commerce Store
-            </h1>
+            <h1 className="text-2xl font-bold mb-4">Products</h1>
             {session && (
                 <Link
                     href="/products/new"
@@ -51,44 +49,35 @@ export default function Home() {
                     Add New Product
                 </Link>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {products.map((product) => (
-                    <div
-                        key={product._id}
-                        className="border p-4 rounded shadow hover:shadow-lg transition"
-                    >
+                    <div key={product._id} className="border p-4 rounded">
                         {product.image && (
                             <img
                                 src={product.image}
                                 alt={product.name}
-                                className="w-full h-48 object-cover mb-2 rounded"
+                                className="w-full h-48 object-cover mb-2"
                             />
                         )}
-                        <h2 className="text-xl font-semibold">
-                            {product.name}
-                        </h2>
-                        <p className="text-gray-600 truncate">
-                            {product.description}
-                        </p>
-                        <p className="text-lg font-bold mt-2">
+                        <h2 className="text-xl font-bold">{product.name}</h2>
+                        <p>{product.description}</p>
+                        <p className="text-lg font-semibold">
                             ${product.price.toFixed(2)}
                         </p>
-                        <div className="mt-4 flex space-x-2">
-                            <Link
-                                href={`/products/${product._id}`}
-                                className="text-blue-500 hover:underline"
+                        <Link
+                            href={`/products/${product._id}`}
+                            className="text-blue-500"
+                        >
+                            View Details
+                        </Link>
+                        {session && (
+                            <button
+                                onClick={() => handleDelete(product._id)}
+                                className="text-red-500 ml-4"
                             >
-                                View Details
-                            </Link>
-                            {session && (
-                                <button
-                                    onClick={() => handleDelete(product._id)}
-                                    className="text-red-500 hover:underline"
-                                >
-                                    Delete
-                                </button>
-                            )}
-                        </div>
+                                Delete
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
