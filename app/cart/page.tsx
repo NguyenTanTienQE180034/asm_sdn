@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface CartItem {
     productId: {
@@ -38,6 +39,7 @@ export default function Cart() {
                 const data = await res.json();
                 setCart(data);
             } catch (err) {
+                console.error(err);
                 setError("Failed to load cart");
             } finally {
                 setLoading(false);
@@ -60,6 +62,7 @@ export default function Cart() {
                 alert("Failed to update quantity");
             }
         } catch (error) {
+            console.error(error);
             alert("Error updating quantity");
         }
     };
@@ -78,6 +81,7 @@ export default function Cart() {
                 alert("Failed to remove item");
             }
         } catch (error) {
+            console.error(error);
             alert("Error removing item");
         }
     };
@@ -113,10 +117,12 @@ export default function Cart() {
                                 className="flex items-center border p-4 rounded"
                             >
                                 {item.productId!.image && (
-                                    <img
+                                    <Image
                                         src={item.productId!.image}
                                         alt={item.productId!.name}
                                         className="w-24 h-24 object-cover rounded mr-4"
+                                        width={96}
+                                        height={96}
                                     />
                                 )}
                                 <div className="flex-1">

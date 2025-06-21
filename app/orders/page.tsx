@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface OrderItem {
     productId: { _id: string; name: string; price: number };
@@ -37,6 +38,7 @@ export default function Orders() {
                 const data = await res.json();
                 setOrders(data);
             } catch (err) {
+                console.error(err);
                 setError("Failed to load orders");
             } finally {
                 setLoading(false);
@@ -55,9 +57,9 @@ export default function Orders() {
             {orders.length === 0 ? (
                 <p>
                     You have no orders yet.{" "}
-                    <a href="/" className="text-blue-500">
+                    <Link href="/" className="text-blue-500">
                         Continue shopping
-                    </a>
+                    </Link>
                 </p>
             ) : (
                 <div className="space-y-6">

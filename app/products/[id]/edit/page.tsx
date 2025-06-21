@@ -39,6 +39,7 @@ export default function EditProduct() {
             } catch (err) {
                 setError("Failed to load product");
                 setLoading(false);
+                console.error(err);
             }
         };
         fetchProduct();
@@ -65,6 +66,7 @@ export default function EditProduct() {
             }
         } catch (error) {
             alert("Failed to update product");
+            console.error(error);
         }
     };
 

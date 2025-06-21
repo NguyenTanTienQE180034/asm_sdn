@@ -37,6 +37,7 @@ export default function AddProduct() {
                 alert(data.error);
             }
         } catch (error) {
+            console.error(error);
             alert("Failed to add product");
         }
     };

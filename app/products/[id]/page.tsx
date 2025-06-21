@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Product {
     _id: string;
@@ -30,6 +31,7 @@ export default function ProductDetail() {
                 setProduct(data);
             } catch (err) {
                 setError("Failed to load product");
+                console.error(err);
             } finally {
                 setLoading(false);
             }
@@ -54,6 +56,7 @@ export default function ProductDetail() {
                 alert("Failed to add to cart");
             }
         } catch (error) {
+            console.error(error);
             alert("Error adding to cart");
         }
     };
@@ -67,10 +70,12 @@ export default function ProductDetail() {
             <h1 className="text-3xl font-bold mb-6">{product.name}</h1>
             <div className="flex flex-col md:flex-row gap-6">
                 {product.image && (
-                    <img
+                    <Image
                         src={product.image}
                         alt={product.name}
                         className="w-full md:w-1/2 h-64 object-cover rounded"
+                        width={500}
+                        height={500}
                     />
                 )}
                 <div className="flex-1">
@@ -78,12 +83,22 @@ export default function ProductDetail() {
                     <p className="text-2xl font-bold mb-4">
                         ${product.price.toFixed(2)}
                     </p>
-                    <button
-                        onClick={handleAddToCart}
-                        className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-                    >
-                        Add to Cart
-                    </button>
+                    {session ? (
+                        <button
+                            onClick={handleAddToCart}
+                            className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                        >
+                            Add to Cart
+                        </button>
+                    ) : (
+                        <p className="text-gray-600">
+                            Please{" "}
+                            <Link href="/auth/login" className="text-blue-500">
+                                log in
+                            </Link>{" "}
+                            to add to cart.
+                        </p>
+                    )}
                     {session && (
                         <div className="mt-4 flex space-x-4">
                             <Link
@@ -111,6 +126,7 @@ export default function ProductDetail() {
                                             alert("Failed to delete product");
                                         }
                                     } catch (error) {
+                                        console.error(error);
                                         alert("Error deleting product");
                                     }
                                 }}

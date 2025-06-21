@@ -1,8 +1,23 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema, Model } from "mongoose";
 
-const orderItemSchema = new mongoose.Schema({
+export interface IOrderItem {
+    productId: mongoose.Types.ObjectId;
+    quantity: number;
+    price: number;
+}
+
+export interface IOrder extends Document {
+    userId: mongoose.Types.ObjectId;
+    items: IOrderItem[];
+    totalAmount: number;
+    status: "pending" | "paid" | "shipped" | "delivered";
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const orderItemSchema = new Schema<IOrderItem>({
     productId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: "Product",
         required: true,
     },
@@ -10,10 +25,10 @@ const orderItemSchema = new mongoose.Schema({
     price: { type: Number, required: true },
 });
 
-const orderSchema = new mongoose.Schema(
+const orderSchema = new Schema<IOrder>(
     {
         userId: {
-            type: mongoose.Schema.Types.ObjectId,
+            type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
         },
@@ -28,4 +43,6 @@ const orderSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-export default mongoose.models.Order || mongoose.model("Order", orderSchema);
+const Order: Model<IOrder> =
+    mongoose.models.Order || mongoose.model<IOrder>("Order", orderSchema);
+export default Order;

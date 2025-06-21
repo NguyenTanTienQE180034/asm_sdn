@@ -19,6 +19,6 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hashedPassword, name });
-
+    console.log("Created user:", user);
     return NextResponse.json({ message: "User created" }, { status: 201 });
 }

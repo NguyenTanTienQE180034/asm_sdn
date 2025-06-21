@@ -1,16 +1,29 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-const productSchema = new mongoose.Schema(
+// Define the interface for the Product document
+export interface IProduct extends Document {
+    name: string;
+    description: string;
+    price: number;
+    image: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// Define the schema
+const productSchema: Schema<IProduct> = new Schema(
     {
         name: { type: String, required: true },
         description: { type: String, required: true },
         price: { type: Number, required: true },
         image: { type: String, default: "" },
-        createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now },
     },
     { timestamps: true }
 );
 
-export default mongoose.models.Product ||
-    mongoose.model("Product", productSchema);
+// Create and export the model with explicit typing
+const Product: Model<IProduct> =
+    mongoose.models.Product ||
+    mongoose.model<IProduct>("Product", productSchema);
+
+export default Product;

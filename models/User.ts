@@ -1,6 +1,13 @@
-import mongoose from "mongoose";
+// filepath: e:\Summer2025\asm_sdn\models\User.ts
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-const userSchema = new mongoose.Schema(
+export interface IUser extends Document {
+    email: string;
+    password: string;
+    name?: string;
+}
+
+const UserSchema = new Schema<IUser>(
     {
         email: { type: String, required: true, unique: true },
         password: { type: String, required: true },
@@ -9,4 +16,5 @@ const userSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-export default mongoose.models.User || mongoose.model("User", userSchema);
+export default (mongoose.models.User as Model<IUser>) ||
+    mongoose.model<IUser>("User", UserSchema);

@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import Product from "@/models/Product";
+import { connectDB } from "../../../lib/db";
+
+import Product from "../../../models/Product";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
-import cloudinary from "@/lib/cloudinary";
+import { authOptions } from "../../../lib/auth";
+import cloudinary from "../../../lib/cloudinary";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET() {
-    await connectDB();
-    const products = await Product.find().sort({ createdAt: -1 });
-    return NextResponse.json(products);
+    try {
+        console.log("Fetching products from database...");
+        await connectDB();
+        const products = await Product.find().sort({ createdAt: -1 });
+        console.log("Found products:", products.length);
+        return NextResponse.json(products);
+    } catch (error: any) {
+        console.error("Error fetching products:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch products", details: error.message },
+            { status: 500 }
+        );
+    }
 }
 
 export async function POST(req: NextRequest) {

@@ -26,6 +26,7 @@ export default function Login() {
                 router.push("/");
             }
         } catch (error) {
+            console.error(error);
             setError("Login failed. Please try again.");
         }
     };
@@ -63,7 +64,7 @@ export default function Login() {
                 </button>
             </form>
             <p className="mt-4">
-                Don't have an account?{" "}
+                Don&apost have an account?{" "}
                 <Link href="/auth/register" className="text-blue-500">
                     Register
                 </Link>

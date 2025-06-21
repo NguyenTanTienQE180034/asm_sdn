@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface CartItem {
     productId: { _id: string; name: string; price: number };
@@ -32,6 +33,7 @@ export default function Checkout() {
                 const data = await res.json();
                 setCart(data);
             } catch (err) {
+                console.error(err);
                 setError("Failed to load cart");
             } finally {
                 setLoading(false);
@@ -61,6 +63,7 @@ export default function Checkout() {
                 alert("Failed to place order");
             }
         } catch (error) {
+            console.error(error);
             alert("Error placing order");
         }
     };
@@ -81,9 +84,9 @@ export default function Checkout() {
             {cart?.items.length === 0 ? (
                 <p>
                     Your cart is empty.{" "}
-                    <a href="/" className="text-blue-500">
+                    <Link href="/" className="text-blue-500">
                         Continue shopping
-                    </a>
+                    </Link>
                 </p>
             ) : (
                 <>

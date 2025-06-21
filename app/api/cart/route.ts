@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/db";
-import Cart from "@/models/Cart";
+import { connectDB } from "../../../lib/db";
+import Cart from "../../../models/Cart";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "../../../lib/auth"; // hoặc đường dẫn phù hợp
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,7 @@ export async function GET() {
             await cart.save();
         }
 
-        return NextResponse.json({ ...cart._doc, items: validItems });
+        return NextResponse.json({ ...cart.toObject(), items: validItems });
     }
 
     return NextResponse.json({ items: [] });
@@ -71,7 +71,8 @@ export async function DELETE(req: NextRequest) {
 
     await connectDB();
     const { productId } = await req.json();
-    let cart = await Cart.findOne({ userId: session.user.id });
+    const cart = await Cart.findOne({ userId: session.user.id });
+    console.log(cart);
 
     if (!cart)
         return NextResponse.json({ error: "Cart not found" }, { status: 404 });
@@ -85,7 +86,6 @@ export async function DELETE(req: NextRequest) {
     const updatedCart = await Cart.findOne({
         userId: session.user.id,
     }).populate("items.productId");
-
     return NextResponse.json(updatedCart);
 }
 
@@ -96,7 +96,8 @@ export async function PUT(req: NextRequest) {
 
     await connectDB();
     const { productId, quantity } = await req.json();
-    let cart = await Cart.findOne({ userId: session.user.id });
+    const cart = await Cart.findOne({ userId: session.user.id });
+    console.log(cart);
 
     if (!cart)
         return NextResponse.json({ error: "Cart not found" }, { status: 404 });
