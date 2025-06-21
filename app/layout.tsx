@@ -1,6 +1,7 @@
 import "./globals.css";
 import Navigation from "../components/Navigation";
 import { AuthProvider } from "../components/AuthProvider";
+import { SearchProvider } from "../context/SearchContext";
 
 export default function RootLayout({
     children,
@@ -11,8 +12,12 @@ export default function RootLayout({
         <html lang="en">
             <body>
                 <AuthProvider>
-                    <Navigation />
-                    <main className="container mx-auto p-4">{children}</main>
+                    <SearchProvider>
+                        <Navigation />
+                        <main className="container mx-auto p-4">
+                            {children}
+                        </main>
+                    </SearchProvider>
                 </AuthProvider>
             </body>
         </html>

@@ -1,167 +1,180 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import {
-    Card,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-    CardContent,
-    CardFooter,
-} from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import Image from "next/image";
-import { useSearch } from "../context/SearchContext";
-
-interface Product {
-    _id: string;
-    name: string;
-    description: string;
-    price: number;
-    image?: string;
-}
-
-export default function Home() {
+import { useSearch } from "../context/SearchContext"; // thêm dòng này
+export default function Products() {
+    const [products, setProducts] = useState([]);
+    const [error, setError] = useState("");
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalProducts: 0,
+        limit: 6,
+    });
     const { data: session } = useSession();
-    const { search, setSearch } = useSearch();
-    const [products, setProducts] = useState<Product[]>([]);
-    const [error, setError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const itemsPerPage = 6;
-
+    const { search } = useSearch(); // thêm dòng này
     useEffect(() => {
-        fetchProducts();
-    }, [search, currentPage]);
+        fetchProducts(pagination.currentPage, pagination.limit, search);
+        // eslint-disable-next-line
+    }, [pagination.currentPage, pagination.limit, search]); // thêm search vào dependency
 
-    const fetchProducts = async () => {
+    const fetchProducts = (page, limit, search) => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: limit.toString(),
+        });
+        if (search) params.append("search", search);
+
+        fetch(`/api/products?${params.toString()}`)
+            .then((res) => {
+                if (!res.ok) {
+                    return res.text().then((text) => {
+                        throw new Error(
+                            `API error: ${res.status} ${res.statusText} - ${text}`
+                        );
+                    });
+                }
+                return res.json();
+            })
+            .then((data) => {
+                if (Array.isArray(data.products)) {
+                    setProducts(data.products);
+                    setPagination({
+                        currentPage: data.pagination.currentPage,
+                        totalPages: data.pagination.totalPages,
+                        totalProducts: data.pagination.totalProducts,
+                        limit: data.pagination.limit,
+                    });
+                } else {
+                    throw new Error(
+                        "Invalid data format: expected an array of products"
+                    );
+                }
+            })
+            .catch((err) => {
+                setError(`Failed to load products: ${err.message}`);
+            });
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this product?"))
+            return;
         try {
-            const res = await fetch(
-                `/api/products?search=${search}&page=${currentPage}&limit=${itemsPerPage}`
-            );
-            if (!res.ok) throw new Error("Failed to fetch products");
-            const data = await res.json();
-            console.log("API response:", data);
-            if (!data.products || !Array.isArray(data.products)) {
-                throw new Error(
-                    "Invalid data format: 'products' is not an array"
+            const res = await fetch(`/api/products/${id}`, {
+                method: "DELETE",
+            });
+            if (res.ok) {
+                setProducts((prev) =>
+                    prev.filter((product) => product._id !== id)
                 );
+            } else {
+                alert("Failed to delete product");
             }
-            setProducts(data.products);
-            setTotalPages(Math.ceil(data.total / itemsPerPage));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "An error occurred");
-            setProducts([]);
+        } catch (error) {
+            alert("Error deleting product");
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Are you sure you want to delete this product?")) {
-            try {
-                const res = await fetch(`/api/products/${id}`, {
-                    method: "DELETE",
-                });
-                if (!res.ok) throw new Error("Failed to delete product");
-                fetchProducts();
-            } catch (err) {
-                setError(
-                    err instanceof Error ? err.message : "An error occurred"
-                );
-            }
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= pagination.totalPages) {
+            setPagination((prev) => ({ ...prev, currentPage: newPage }));
         }
-    };
-
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-        setSearch("");
     };
 
     return (
-        <div className="container mx-auto p-4">
+        <div>
+            <h1 className="text-2xl font-bold mb-4">Products</h1>
+            {session && (
+                <Link
+                    href="/products/new"
+                    className="bg-blue-500 text-white p-2 rounded mb-4 inline-block"
+                >
+                    Add New Product
+                </Link>
+            )}
             {error && <p className="text-red-500 mb-4">{error}</p>}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {Array.isArray(products) && products.length > 0 ? (
-                    products.map((product) => (
-                        <Card
-                            key={product._id}
-                            className="flex flex-col justify-between min-h-[500px] hover:shadow-lg transition-shadow duration-300"
-                        >
-                            <CardHeader>
-                                <div className="w-full h-[400px] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                                    {product.image && (
-                                        <Image
-                                            src={product.image}
-                                            alt={product.name}
-                                            width={200}
-                                            height={400}
-                                            className="object-contain w-full h-full"
-                                        />
-                                    )}
-                                </div>
-                                <CardTitle className="text-xl font-semibold text-gray-700 mt-4">
+            {products.length === 0 && !error ? (
+                <p>No products available.</p>
+            ) : (
+                <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        {products.map((product) => (
+                            <div
+                                key={product._id}
+                                className="border p-4 rounded shadow hover:shadow-lg transition"
+                            >
+                                {product.image && (
+                                    <img
+                                        src={product.image}
+                                        alt={product.name}
+                                        className="w-full h-48 object-cover mb-2 rounded"
+                                    />
+                                )}
+                                <h2 className="text-xl font-semibold">
                                     {product.name}
-                                </CardTitle>
-                            </CardHeader>
-
-                            <CardContent className="flex-grow">
-                                <CardDescription className="text-gray-600 mb-2">
+                                </h2>
+                                <p className="text-gray-600 truncate">
                                     {product.description}
-                                </CardDescription>
-                                <p className="text-lg font-bold text-green-600">
-                                    ${product.price}
                                 </p>
-                            </CardContent>
-
-                            <CardFooter className="flex space-x-2 mt-auto pt-4">
-                                <Button asChild>
-                                    <Link href={`/products/${product._id}`}>
-                                        View
+                                <p className="text-lg font-bold mt-2">
+                                    ${product.price.toFixed(2)}
+                                </p>
+                                <div className="mt-4 flex space-x-2">
+                                    <Link
+                                        href={`/products/${product._id}`}
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        View Details
                                     </Link>
-                                </Button>
-
-                                {session && (
-                                    <>
-                                        <Button asChild variant="outline">
-                                            <Link href={`/edit/${product._id}`}>
+                                    {session && (
+                                        <>
+                                            <Link
+                                                href={`/products/${product._id}/edit`}
+                                                className="text-green-500 hover:underline"
+                                            >
                                                 Edit
                                             </Link>
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            onClick={() =>
-                                                handleDelete(product._id)
-                                            }
-                                        >
-                                            Delete
-                                        </Button>
-                                    </>
-                                )}
-                            </CardFooter>
-                        </Card>
-                    ))
-                ) : (
-                    <p className="text-gray-500 col-span-3 text-center">
-                        No products found.
-                    </p>
-                )}
-            </div>
-            {totalPages > 1 && (
-                <div className="mt-6 flex justify-center space-x-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        (page) => (
-                            <Button
-                                key={page}
-                                onClick={() => handlePageChange(page)}
-                                variant={
-                                    currentPage === page ? "default" : "outline"
-                                }
-                            >
-                                {page}
-                            </Button>
-                        )
-                    )}
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(product._id)
+                                                }
+                                                className="text-red-500 hover:underline"
+                                            >
+                                                Delete
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-6 flex justify-center items-center space-x-4">
+                        <button
+                            onClick={() =>
+                                handlePageChange(pagination.currentPage - 1)
+                            }
+                            disabled={pagination.currentPage === 1}
+                            className="bg-blue-500 text-white p-2 rounded disabled:bg-gray-300"
+                        >
+                            Previous
+                        </button>
+                        <span>
+                            Page {pagination.currentPage} of{" "}
+                            {pagination.totalPages}
+                        </span>
+                        <button
+                            onClick={() =>
+                                handlePageChange(pagination.currentPage + 1)
+                            }
+                            disabled={
+                                pagination.currentPage === pagination.totalPages
+                            }
+                            className="bg-blue-500 text-white p-2 rounded disabled:bg-gray-300"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

@@ -1,28 +1,32 @@
 "use client";
-
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 interface SearchContextType {
     search: string;
     setSearch: (search: string) => void;
 }
 
-const SearchContext = createContext<SearchContextType | undefined>(undefined);
+const SearchContext = createContext<SearchContextType>({
+    search: "",
+    setSearch: () => {},
+});
 
-export function SearchProvider({ children }: { children: ReactNode }) {
+export function SearchProvider({ children }: { children: React.ReactNode }) {
     const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [search]);
 
     return (
-        <SearchContext.Provider value={{ search, setSearch }}>
+        <SearchContext.Provider value={{ search: debouncedSearch, setSearch }}>
             {children}
         </SearchContext.Provider>
     );
 }
 
-export function useSearch() {
-    const context = useContext(SearchContext);
-    if (!context) {
-        throw new Error("useSearch must be used within a SearchProvider");
-    }
-    return context;
-}
+export const useSearch = () => useContext(SearchContext);
