@@ -1,73 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image";
-
-interface CartItem {
-    productId: {
-        _id: string;
-        name: string;
-        price: number;
-        image: string;
-    } | null;
-    quantity: number;
-}
-
-interface Cart {
-    items: CartItem[];
-}
 
 export default function Cart() {
-    const [cart, setCart] = useState<Cart | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: session, status } = useSession();
+    const [cartItems, setCartItems] = useState([]);
     const [error, setError] = useState("");
-    const { data: session } = useSession();
-    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!session) {
-            router.push("/auth/login");
-            return;
+        if (status === "authenticated") {
+            fetchCart();
+        } else if (status === "unauthenticated") {
+            setIsLoading(false);
         }
-        const fetchCart = async () => {
-            try {
-                const res = await fetch("/api/cart");
-                if (!res.ok) throw new Error("Failed to load cart");
-                const data = await res.json();
-                setCart(data);
-            } catch (err) {
-                console.error(err);
-                setError("Failed to load cart");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchCart();
-    }, [session, router]);
+    }, [status]);
 
-    const updateQuantity = async (productId: string, quantity: number) => {
+    const fetchCart = async () => {
+        try {
+            const res = await fetch("/api/cart");
+            if (!res.ok) {
+                throw new Error(`Failed to fetch cart: ${res.status}`);
+            }
+            const data = await res.json();
+            if (Array.isArray(data.items)) {
+                setCartItems(data.items);
+            } else {
+                throw new Error("Invalid cart data format");
+            }
+        } catch (err) {
+            setError(`Failed to load cart: ${err.message}`);
+            console.error("Fetch cart error:", err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleUpdateQuantity = async (productId, quantity) => {
         try {
             const res = await fetch("/api/cart", {
-                method: "PUT",
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ productId, quantity }),
             });
             if (res.ok) {
-                const updatedCart = await res.json();
-                setCart(updatedCart);
+                const data = await res.json();
+                setCartItems(data.items);
+                window.dispatchEvent(new Event("cartUpdated"));
             } else {
-                alert("Failed to update quantity");
+                const errorData = await res.json();
+                alert(
+                    `Failed to update quantity: ${
+                        errorData.error || "Unknown error"
+                    }`
+                );
             }
         } catch (error) {
-            console.error(error);
             alert("Error updating quantity");
+            console.error("Update quantity error:", error.message);
         }
     };
 
-    const removeItem = async (productId: string) => {
+    const handleRemoveFromCart = async (productId) => {
         try {
             const res = await fetch("/api/cart", {
                 method: "DELETE",
@@ -75,122 +71,118 @@ export default function Cart() {
                 body: JSON.stringify({ productId }),
             });
             if (res.ok) {
-                const updatedCart = await res.json();
-                setCart(updatedCart);
+                const data = await res.json();
+                setCartItems(data.items);
+                window.dispatchEvent(new Event("cartUpdated"));
             } else {
-                alert("Failed to remove item");
+                const errorData = await res.json();
+                alert(
+                    `Failed to remove item: ${
+                        errorData.error || "Unknown error"
+                    }`
+                );
             }
         } catch (error) {
-            console.error(error);
             alert("Error removing item");
+            console.error("Remove from cart error:", error.message);
         }
     };
 
-    if (!session) return null;
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div className="text-red-500">{error}</div>;
+    const totalPrice = cartItems.reduce((total, item) => {
+        const price = Number(item.price) || 0;
+        return total + price * item.quantity;
+    }, 0);
 
-    // Filter out items with null productId and calculate total safely
-    const validItems =
-        cart?.items.filter((item) => item.productId !== null) || [];
-    const total = validItems.reduce(
-        (sum, item) => sum + item.quantity * (item.productId?.price || 0),
-        0
-    );
+    if (status === "loading" || isLoading) return <div>Loading...</div>;
+    if (!session)
+        return (
+            <div>
+                Please{" "}
+                <Link href="/auth/login" className="text-blue-500">
+                    log in
+                </Link>{" "}
+                to view your cart.
+            </div>
+        );
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">Your Cart</h1>
-            {validItems.length === 0 ? (
-                <p>
-                    Your cart is empty.{" "}
-                    <Link href="/" className="text-blue-500">
-                        Continue shopping
-                    </Link>
-                </p>
+        <div className="container mx-auto px-4 py-6">
+            <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
+            {error && <p className="text-red-500 mb-4">{error}</p>}
+            {cartItems.length === 0 ? (
+                <p>Your cart is empty.</p>
             ) : (
-                <>
-                    <div className="space-y-4">
-                        {validItems.map((item) => (
-                            <div
-                                key={item.productId!._id}
-                                className="flex items-center border p-4 rounded"
-                            >
-                                {item.productId!.image && (
-                                    <Image
-                                        src={item.productId!.image}
-                                        alt={item.productId!.name}
-                                        className="w-24 h-24 object-cover rounded mr-4"
-                                        width={96}
-                                        height={96}
-                                    />
-                                )}
-                                <div className="flex-1">
-                                    <h2 className="text-xl font-semibold">
-                                        {item.productId!.name}
-                                    </h2>
-                                    <p className="text-gray-600">
-                                        ${item.productId!.price.toFixed(2)} x{" "}
-                                        {item.quantity}
-                                    </p>
-                                    <div className="flex items-center mt-2">
-                                        <button
-                                            onClick={() =>
-                                                updateQuantity(
-                                                    item.productId!._id,
-                                                    item.quantity - 1
-                                                )
-                                            }
-                                            className="bg-gray-200 px-2 py-1 rounded"
-                                            disabled={item.quantity <= 1}
-                                        >
-                                            -
-                                        </button>
-                                        <span className="mx-2">
-                                            {item.quantity}
-                                        </span>
-                                        <button
-                                            onClick={() =>
-                                                updateQuantity(
-                                                    item.productId!._id,
-                                                    item.quantity + 1
-                                                )
-                                            }
-                                            className="bg-gray-200 px-2 py-1 rounded"
-                                        >
-                                            +
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                removeItem(item.productId!._id)
-                                            }
-                                            className="text-red-500 ml-4 hover:underline"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                                <p className="text-lg font-bold">
-                                    $
-                                    {(
-                                        item.quantity * item.productId!.price
-                                    ).toFixed(2)}
+                <div className="space-y-4">
+                    {cartItems.map((item) => (
+                        <div
+                            key={item.productId}
+                            className="flex items-center border p-4 rounded shadow"
+                        >
+                            <img
+                                src={item.image || "/placeholder.jpg"}
+                                alt={item.name}
+                                className="h-16 w-16 object-cover rounded mr-4"
+                            />
+                            <div className="flex-1">
+                                <h2 className="text-lg font-semibold">
+                                    {item.name}
+                                </h2>
+                                <p className="text-gray-600">
+                                    ${Number(item.price).toFixed(2)} x{" "}
+                                    {item.quantity}
                                 </p>
                             </div>
-                        ))}
-                    </div>
-                    <div className="mt-6 p-4 border rounded">
-                        <h2 className="text-xl font-bold">
-                            Total: ${total.toFixed(2)}
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() =>
+                                        handleUpdateQuantity(
+                                            item.productId,
+                                            item.quantity - 1
+                                        )
+                                    }
+                                    className="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+                                    disabled={item.quantity <= 1}
+                                >
+                                    -
+                                </button>
+                                <span>{item.quantity}</span>
+                                <button
+                                    onClick={() =>
+                                        handleUpdateQuantity(
+                                            item.productId,
+                                            item.quantity + 1
+                                        )
+                                    }
+                                    className="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+                                >
+                                    +
+                                </button>
+                                <button
+                                    onClick={() =>
+                                        handleRemoveFromCart(item.productId)
+                                    }
+                                    className="text-red-500 hover:text-red-700"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="mt-6 p-4 border rounded shadow">
+                        <h2 className="text-xl font-semibold mb-2">
+                            Order Summary
                         </h2>
+                        <p className="text-lg">
+                            Total: ${totalPrice.toFixed(2)}
+                        </p>
                         <Link
                             href="/checkout"
-                            className="bg-blue-500 text-white p-2 rounded mt-4 inline-block"
+                            className="mt-4 inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
                         >
                             Proceed to Checkout
                         </Link>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

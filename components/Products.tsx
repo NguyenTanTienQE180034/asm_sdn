@@ -1,11 +1,10 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// Tách component sử dụng useSearchParams ra thành component riêng
-function ProductsContent() {
+export default function Products() {
     const [products, setProducts] = useState([]);
     const [error, setError] = useState("");
     const [pagination, setPagination] = useState({
@@ -259,19 +258,5 @@ function ProductsContent() {
                 </>
             )}
         </div>
-    );
-}
-
-// Loading component
-function LoadingFallback() {
-    return <div>Loading products...</div>;
-}
-
-// Main component
-export default function Products() {
-    return (
-        <Suspense fallback={<LoadingFallback />}>
-            <ProductsContent />
-        </Suspense>
     );
 }

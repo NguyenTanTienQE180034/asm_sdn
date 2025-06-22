@@ -6,7 +6,10 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 interface CartItem {
-    productId: { _id: string; name: string; price: number };
+    productId: string;
+    name: string;
+    price: number;
+    image: string;
     quantity: number;
 }
 
@@ -29,18 +32,51 @@ export default function Checkout() {
         const fetchCart = async () => {
             try {
                 const res = await fetch("/api/cart");
-                if (!res.ok) throw new Error("Failed to load cart");
+                if (!res.ok) {
+                    throw new Error(`Failed to load cart: ${res.status}`);
+                }
                 const data = await res.json();
-                setCart(data);
+                if (!Array.isArray(data.items)) {
+                    throw new Error("Invalid cart data format");
+                }
+                setCart({ items: data.items });
             } catch (err) {
-                console.error(err);
-                setError("Failed to load cart");
+                console.error("Fetch cart error:", err.message);
+                setError(`Failed to load cart: ${err.message}`);
             } finally {
                 setLoading(false);
             }
         };
         fetchCart();
     }, [session, router]);
+
+    const handleUpdateQuantity = async (
+        productId: string,
+        quantity: number
+    ) => {
+        try {
+            const res = await fetch("/api/cart", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ productId, quantity }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCart({ items: data.items });
+                window.dispatchEvent(new Event("cartUpdated"));
+            } else {
+                const errorData = await res.json();
+                alert(
+                    `Failed to update quantity: ${
+                        errorData.error || "Unknown error"
+                    }`
+                );
+            }
+        } catch (error) {
+            console.error("Update quantity error:", error.message);
+            alert("Error updating quantity");
+        }
+    };
 
     const handlePlaceOrder = async () => {
         if (!cart || cart.items.length === 0) {
@@ -58,12 +94,19 @@ export default function Checkout() {
             });
             if (res.ok) {
                 alert("Order placed successfully!");
+                setCart({ items: [] }); // Clear cart on success
+                window.dispatchEvent(new Event("cartUpdated"));
                 router.push("/orders");
             } else {
-                alert("Failed to place order");
+                const errorData = await res.json();
+                alert(
+                    `Failed to place order: ${
+                        errorData.error || "Unknown error"
+                    }`
+                );
             }
         } catch (error) {
-            console.error(error);
+            console.error("Place order error:", error.message);
             alert("Error placing order");
         }
     };
@@ -74,12 +117,12 @@ export default function Checkout() {
 
     const total =
         cart?.items.reduce(
-            (sum, item) => sum + item.quantity * item.productId.price,
+            (sum, item) => sum + item.quantity * Number(item.price || 0),
             0
         ) || 0;
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4 py-6">
             <h1 className="text-3xl font-bold mb-6">Checkout</h1>
             {cart?.items.length === 0 ? (
                 <p>
@@ -94,18 +137,28 @@ export default function Checkout() {
                         <h2 className="text-xl font-bold">Order Summary</h2>
                         {cart?.items.map((item) => (
                             <div
-                                key={item.productId._id}
-                                className="flex justify-between border-b py-2"
+                                key={item.productId}
+                                className="flex justify-between border-b py-2 items-center"
                             >
-                                <span>
-                                    {item.productId.name} x {item.quantity}
-                                </span>
-                                <span>
-                                    $
-                                    {(
-                                        item.quantity * item.productId.price
-                                    ).toFixed(2)}
-                                </span>
+                                <div className="flex items-center">
+                                    <img
+                                        src={item.image || "/placeholder.jpg"}
+                                        alt={item.name}
+                                        className="h-12 w-12 object-cover rounded mr-2"
+                                    />
+                                    <span>
+                                        {item.name} x {item.quantity}
+                                    </span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <span>
+                                        $
+                                        {(
+                                            item.quantity *
+                                            Number(item.price || 0)
+                                        ).toFixed(2)}
+                                    </span>
+                                </div>
                             </div>
                         ))}
                         <div className="flex justify-between font-bold mt-4">
@@ -123,7 +176,7 @@ export default function Checkout() {
                         </p>
                         <button
                             onClick={handlePlaceOrder}
-                            className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+                            className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition"
                         >
                             Place Order
                         </button>
