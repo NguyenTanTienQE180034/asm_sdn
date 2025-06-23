@@ -1,21 +1,26 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { ShoppingCartIcon } from "@heroicons/react/24/outline";
 import { useSession } from "next-auth/react";
+import CartButton from "./CartButton";
+import CartDropdownContent from "./CartDropDownContent";
+import LoginPrompt from "./LoginPrompt";
+import CustomStyles from "./CustomStyle";
 
 export default function CartDropdown() {
     const { data: session } = useSession();
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
     const [cartItems, setCartItems] = useState([]);
     const [cartRefresh, setCartRefresh] = useState(0);
     const cartRef = useRef(null);
-
-    // Fetch cart items
+    const loginPromptRef = useRef(null);
     useEffect(() => {
         const fetchCart = async () => {
-            if (!session) return;
+            if (!session) {
+                setCartItems([]);
+                return;
+            }
             try {
                 const res = await fetch("/api/cart");
                 if (!res.ok) {
@@ -37,17 +42,34 @@ export default function CartDropdown() {
         fetchCart();
     }, [session, cartRefresh]);
 
-    // Close cart dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (cartRef.current && !cartRef.current.contains(event.target)) {
                 setIsCartOpen(false);
+            }
+            if (
+                loginPromptRef.current &&
+                !loginPromptRef.current.contains(event.target)
+            ) {
+                setIsLoginPromptOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () =>
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // Disable body scroll when popup is open
+    useEffect(() => {
+        if (isLoginPromptOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [isLoginPromptOpen]);
 
     // Listen for cart updates
     useEffect(() => {
@@ -60,6 +82,10 @@ export default function CartDropdown() {
     }, []);
 
     const handleUpdateQuantity = async (productId, quantity) => {
+        if (!session) {
+            setIsLoginPromptOpen(true);
+            return;
+        }
         try {
             const res = await fetch("/api/cart", {
                 method: "PATCH",
@@ -84,86 +110,74 @@ export default function CartDropdown() {
         }
     };
 
+    const handleRemoveFromCart = async (productId) => {
+        if (!session) {
+            setIsLoginPromptOpen(true);
+            return;
+        }
+        try {
+            const res = await fetch("/api/cart", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ productId }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCartItems(data.items);
+                window.dispatchEvent(new Event("cartUpdated"));
+            } else {
+                const errorData = await res.json();
+                alert(
+                    `Failed to remove item: ${
+                        errorData.error || "Unknown error"
+                    }`
+                );
+            }
+        } catch (error) {
+            console.error("Remove from cart error:", error.message);
+            alert("Error removing item");
+        }
+    };
+
+    const handleCartClick = () => {
+        if (!session) {
+            setIsLoginPromptOpen(true);
+            return;
+        }
+        setIsCartOpen(!isCartOpen);
+    };
+
+    const getTotalPrice = () => {
+        return cartItems
+            .reduce(
+                (total, item) => total + Number(item.price) * item.quantity,
+                0
+            )
+            .toFixed(2);
+    };
+
     return (
         <div className="relative" ref={cartRef}>
-            <button
-                onClick={() => setIsCartOpen(!isCartOpen)}
-                className="text-white hover:text-blue-200 transition flex items-center"
-            >
-                <ShoppingCartIcon className="h-6 w-6" />
-                {cartItems.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {cartItems.length}
-                    </span>
-                )}
-            </button>
+            <CartButton
+                onClick={handleCartClick}
+                session={session}
+                cartItems={cartItems}
+            />
             {isCartOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl p-4 z-10">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                        Your Cart
-                    </h3>
-                    {cartItems.length === 0 ? (
-                        <p className="text-gray-600">Your cart is empty.</p>
-                    ) : (
-                        <div className="max-h-60 overflow-y-auto">
-                            {cartItems.map((item) => (
-                                <div
-                                    key={item.productId}
-                                    className="flex items-center border-b py-2"
-                                >
-                                    <img
-                                        src={item.image || "/placeholder.jpg"}
-                                        alt={item.name}
-                                        className="h-12 w-12 object-cover rounded mr-2"
-                                    />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-800">
-                                            {item.name}
-                                        </p>
-                                        <p className="text-sm text-gray-600">
-                                            ${Number(item.price).toFixed(2)} x{" "}
-                                            {item.quantity}
-                                        </p>
-                                        <div className="flex items-center space-x-2 mt-1">
-                                            <button
-                                                onClick={() =>
-                                                    handleUpdateQuantity(
-                                                        item.productId,
-                                                        item.quantity - 1
-                                                    )
-                                                }
-                                                className="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
-                                                disabled={item.quantity <= 1}
-                                            >
-                                                -
-                                            </button>
-                                            <span>{item.quantity}</span>
-                                            <button
-                                                onClick={() =>
-                                                    handleUpdateQuantity(
-                                                        item.productId,
-                                                        item.quantity + 1
-                                                    )
-                                                }
-                                                className="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <Link
-                        href="/cart"
-                        className="block mt-4 bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 transition"
-                        onClick={() => setIsCartOpen(false)}
-                    >
-                        View Cart
-                    </Link>
-                </div>
+                <CartDropdownContent
+                    cartItems={cartItems}
+                    handleUpdateQuantity={handleUpdateQuantity}
+                    handleRemoveFromCart={handleRemoveFromCart}
+                    setIsCartOpen={setIsCartOpen}
+                    getTotalPrice={getTotalPrice}
+                />
             )}
+            <LoginPrompt
+                isOpen={isLoginPromptOpen}
+                setIsOpen={setIsLoginPromptOpen}
+                loginPromptRef={loginPromptRef}
+            />
+            <CustomStyles />
         </div>
     );
 }
